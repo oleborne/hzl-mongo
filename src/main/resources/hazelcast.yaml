@@ -1,0 +1,13 @@
+hazelcast:
+  phone:
+    home:
+      enabled: false
+  network:
+    join:
+      multicast:
+        #multicast-group: 224.0.0.1
+        enabled: true
+    interfaces:
+      enabled: true
+      interfaces:
+        - 192.168.1.*
