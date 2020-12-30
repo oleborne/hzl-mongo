@@ -7,7 +7,7 @@ import java.io.Serializable;
 
 @Data
 @Builder
-public class IdempotencyKey implements Serializable {
+public class IdempotencyKey {
     String paymentIntegratorAccountId;
     String requestId;
 }
