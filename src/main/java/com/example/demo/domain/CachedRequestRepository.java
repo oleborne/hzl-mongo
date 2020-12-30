@@ -5,5 +5,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface CachedRequestRepository
-        extends ReactiveMongoRepository<CachedRequestDocument, IdempotencyKey> {
-}
+    extends ReactiveMongoRepository<CachedRequestDocument, IdempotencyKey>,
+        CustomCachedRequestRepository {}

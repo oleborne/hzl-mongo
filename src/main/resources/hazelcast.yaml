@@ -7,15 +7,15 @@ hazelcast:
       enabled: true
       interfaces:
         - 192.168.1.*
-  map:
-    MY_MAP2:
-      map-store:
-        enabled: true
-        class-name: com.example.demo.domain.MongoStore
+  #map:
+  #  MY_MAP2:
+  #    map-store:
+  #      enabled: true
+  #      class-name: com.example.demo.domain.MongoStore
 
-  serialization:
-    serializers:
-      - class-name: com.example.demo.domain.IdempotencyKeySerializer
-        type-class: com.example.demo.domain.IdempotencyKey
-      - class-name: com.example.demo.domain.CachedRequestSerializer
-        type-class: com.example.demo.domain.CachedRequest
+#  serialization:
+#    serializers:
+#      - class-name: com.example.demo.domain.IdempotencyKeySerializer
+#        type-class: com.example.demo.domain.IdempotencyKey
+#      - class-name: com.example.demo.domain.CachedRequestSerializer
+#        type-class: com.example.demo.domain.CachedRequest
