@@ -19,9 +19,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MongoStore implements EntryStore<IdempotencyKey, CachedRequest> {
 
-  final ObjectMapper objectMapper;
+  private final ObjectMapper objectMapper;
 
-  final CachedRequestRepository requestRepository;
+  private final CachedRequestRepository requestRepository;
 
   @Override
   public void store(IdempotencyKey key, MetadataAwareValue<CachedRequest> value) {
