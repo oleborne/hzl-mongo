@@ -35,8 +35,8 @@ public class MyConfig {
     final Config config = new YamlConfigBuilder(properties.getConfig().getURL()).build();
 
     MapConfig mapConfig =
-        new MapConfig(CACHED_REQUESTS)
-            .setMapStoreConfig(new MapStoreConfig().setImplementation(mongoStore));
+            new MapConfig(CACHED_REQUESTS)
+                    .setMapStoreConfig(new MapStoreConfig().setImplementation(mongoStore));
     config.addMapConfig(mapConfig);
 
     MapConfig mapConfigUserXref =
@@ -54,6 +54,11 @@ public class MyConfig {
     config.setManagedContext(managedContext);
 
     return config;
+  }
+
+  @Autowired
+  public void initStore(MongoStore mongoStore, HazelcastInstance hazelcastInstance, Config hazelcastConfig) {
+    mongoStore.init(hazelcastInstance, hazelcastConfig.getProperties(), CACHED_REQUESTS);
   }
 
   private void addSerializer(Config config, StreamSerializer<?> serializer) {

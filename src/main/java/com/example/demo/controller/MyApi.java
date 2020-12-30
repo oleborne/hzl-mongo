@@ -99,7 +99,7 @@ public class MyApi {
                                                     .build();
                                     idempotencyCache.put(idempotencyKey, newCachedRequest);
 
-                                    ResponseObject responseObject = doGenerateResponse(request);
+                                    ResponseObject responseObject = doGenerateResponse(request, exchange);
 
                                     newCachedRequest.setCachedResponse(responseObject);
                                     idempotencyCache.put(idempotencyKey, newCachedRequest);
@@ -118,15 +118,17 @@ public class MyApi {
         .build();
   }
 
-  private ResponseObject doGenerateResponse(RequestObject request) {
+  private ResponseObject doGenerateResponse(RequestObject request, ServerWebExchange exchange) {
     try {
-      log.info("Faking slow process for 10s");
-      Thread.sleep(10000); // simulate slow process
-      log.info("Done sleeping");
+      if (!exchange.getRequest().getHeaders().containsKey("no-sleep")) {
+        log.info("Faking slow process for 10s");
+        Thread.sleep(10000); // simulate slow process
+        log.info("Done sleeping");
+      }
       return ResponseObject.builder()
-          .created(now())
-          .fullMessage("Hello " + request.getName())
-          .build();
+              .created(now())
+              .fullMessage("Hello " + request.getName())
+              .build();
     } catch (InterruptedException e) {
       throw Exceptions.propagate(e);
     }
