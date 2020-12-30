@@ -2,6 +2,7 @@ package com.example.demo;
 
 import com.example.demo.domain.*;
 import com.hazelcast.config.*;
+import com.hazelcast.nio.serialization.DataSerializable;
 import com.hazelcast.nio.serialization.StreamSerializer;
 import com.hazelcast.spring.context.SpringManagedContext;
 import org.springframework.boot.autoconfigure.hazelcast.HazelcastProperties;
@@ -10,6 +11,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
+import java.util.Arrays;
+import java.util.List;
 
 import static com.example.demo.controller.MyApi.CACHED_REQUESTS;
 
@@ -18,7 +22,10 @@ public class MyConfig {
 
   @Bean
   public Config config(
-      HazelcastProperties properties, ApplicationContext applicationContext, MongoStore mongoStore)
+      HazelcastProperties properties,
+      ApplicationContext applicationContext,
+      MongoStore mongoStore,
+      List<StreamSerializer<?>> serializers)
       throws IOException {
     final Config config = new YamlConfigBuilder(properties.getConfig().getURL()).build();
 
@@ -27,8 +34,7 @@ public class MyConfig {
             .setMapStoreConfig(new MapStoreConfig().setImplementation(mongoStore));
     config.addMapConfig(mapConfig);
 
-    addSerializer(config, IdempotencyKey.class, IdempotencyKeySerializer.class);
-    addSerializer(config, CachedRequest.class, CachedRequestSerializer.class);
+    serializers.forEach(s -> addSerializer(config, s));
 
     SpringManagedContext managedContext = new SpringManagedContext();
     managedContext.setApplicationContext(applicationContext);
@@ -37,11 +43,23 @@ public class MyConfig {
     return config;
   }
 
-  private <T> void addSerializer(
-      Config config, Class<T> typeClass, Class<? extends StreamSerializer<T>> serializerClass) {
+  private <T> void addSerializer(Config config, StreamSerializer<?> serializer) {
     SerializerConfig serializerConfig = new SerializerConfig();
-    serializerConfig.setClass(serializerClass);
-    serializerConfig.setTypeClass(typeClass);
+    serializerConfig.setImplementation(serializer);
+    serializerConfig.setTypeClass(extractTargetClass(serializer));
     config.getSerializationConfig().addSerializerConfig(serializerConfig);
+  }
+
+  private Class<?> extractTargetClass(StreamSerializer<?> serializer) {
+    Class<?> serializerClass = serializer.getClass();
+    return Arrays.stream(serializerClass.getGenericInterfaces())
+            .filter(type -> type instanceof ParameterizedType)
+            .map(type -> (ParameterizedType)type)
+            .filter(parameterizedType -> StreamSerializer.class.equals(parameterizedType.getRawType()))
+            .map(parameterizedType -> parameterizedType.getActualTypeArguments()[0])
+            .filter(type -> type instanceof Class)
+            .map(type -> (Class<?>)type)
+            .findFirst()
+            .orElseThrow(() -> new UnsupportedOperationException("Invalid Serializer definition: " + serializerClass));
   }
 }

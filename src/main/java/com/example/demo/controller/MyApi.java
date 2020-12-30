@@ -118,7 +118,9 @@ public class MyApi {
 
   private ResponseObject doGenerateResponse(RequestObject request) {
     try {
+      log.info("Faking slow process for 10s");
       Thread.sleep(10000); // simulate slow process
+      log.info("Done sleeping");
       return ResponseObject.builder()
           .created(now())
           .fullMessage("Hello " + request.getName())

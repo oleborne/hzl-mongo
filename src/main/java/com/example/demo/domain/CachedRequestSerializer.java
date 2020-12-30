@@ -3,11 +3,11 @@ package com.example.demo.domain;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.StreamSerializer;
-import com.hazelcast.spring.context.SpringAware;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
-@SpringAware
+@Component
 public class CachedRequestSerializer implements StreamSerializer<CachedRequest> {
 
     @Override

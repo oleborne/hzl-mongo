@@ -3,9 +3,11 @@ package com.example.demo.domain;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.StreamSerializer;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
+@Component
 public class IdempotencyKeySerializer implements StreamSerializer<IdempotencyKey> {
     @Override
     public void write(ObjectDataOutput out, IdempotencyKey object) throws IOException {
