@@ -93,7 +93,10 @@ public class MyApi {
                           getCachedResponse(request, cachedRequest)
                               .orElseGet(
                                   () -> {
-                                    CachedRequest newCachedRequest = CachedRequest.builder().requestHash(computeHash(request)).build();
+                                    CachedRequest newCachedRequest =
+                                            CachedRequest.builder()
+                                                    .requestHash(computeHash(request))
+                                                    .build();
                                     idempotencyCache.put(idempotencyKey, newCachedRequest);
 
                                     ResponseObject responseObject = doGenerateResponse(request);
@@ -106,7 +109,6 @@ public class MyApi {
           return Mono.fromCompletionStage(response);
         });
   }
-
 
   private IdempotencyKey extractIdempotencyKey(RequestObject request, ServerWebExchange exchange) {
     String piaid = exchange.getRequest().getPath().pathWithinApplication().subPath(3, 4).value();

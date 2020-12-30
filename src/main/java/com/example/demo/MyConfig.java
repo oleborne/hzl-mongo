@@ -1,6 +1,6 @@
 package com.example.demo;
 
-import com.example.demo.domain.*;
+import com.example.demo.domain.MongoStore;
 import com.hazelcast.config.*;
 import com.hazelcast.nio.serialization.StreamSerializer;
 import com.hazelcast.spring.context.SpringManagedContext;
@@ -49,14 +49,19 @@ public class MyConfig {
     SerializationConfig serializationConfig = config.getSerializationConfig();
 
     Stream<Class<?>> targetClasses = extractTargetClass(serializer);
-    long count = targetClasses.map(targetClass -> {
-      SerializerConfig serializerConfig = new SerializerConfig();
-      serializerConfig.setImplementation(serializer);
-      serializerConfig.setTypeClass(targetClass);
-      serializationConfig.addSerializerConfig(serializerConfig);
-      log.info("Adding serializer {} for target class {}", serializer, targetClass);
-      return targetClass;
-    }).count();
+    long count =
+            targetClasses
+                    .map(
+                            targetClass -> {
+                              SerializerConfig serializerConfig =
+                                      new SerializerConfig()
+                                              .setImplementation(serializer)
+                                              .setTypeClass(targetClass);
+                              serializationConfig.addSerializerConfig(serializerConfig);
+                              log.info("Adding serializer {} for target class {}", serializer, targetClass);
+                              return targetClass;
+                            })
+                    .count();
 
     if (count == 0) {
       log.warn("No target class detected for serializer {}", serializer);
@@ -67,10 +72,10 @@ public class MyConfig {
     Class<?> serializerClass = serializer.getClass();
     return Arrays.stream(serializerClass.getGenericInterfaces())
             .filter(type -> type instanceof ParameterizedType)
-            .map(type -> (ParameterizedType)type)
+            .map(type -> (ParameterizedType) type)
             .filter(parameterizedType -> StreamSerializer.class.equals(parameterizedType.getRawType()))
             .map(parameterizedType -> parameterizedType.getActualTypeArguments()[0])
             .filter(type -> type instanceof Class)
-            .map(type -> (Class<?>)type);
+            .map(type -> (Class<?>) type);
   }
 }
