@@ -2,9 +2,11 @@ package com.example.demo;
 
 import com.example.demo.domain.MongoStore;
 import com.hazelcast.config.*;
+import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.nio.serialization.StreamSerializer;
 import com.hazelcast.spring.context.SpringManagedContext;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.hazelcast.HazelcastProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static com.example.demo.controller.MyApi.CACHED_REQUESTS;
+import static com.example.demo.controller.XrefApi.USER_XREF;
 
 @Configuration
 @Slf4j
@@ -35,6 +38,14 @@ public class MyConfig {
         new MapConfig(CACHED_REQUESTS)
             .setMapStoreConfig(new MapStoreConfig().setImplementation(mongoStore));
     config.addMapConfig(mapConfig);
+
+    MapConfig mapConfigUserXref =
+            new MapConfig(USER_XREF)
+                    .addIndexConfig(
+                            new IndexConfig(IndexType.HASH).setName("phx_id").addAttribute("phoenixId"))
+                    .addIndexConfig(
+                            new IndexConfig(IndexType.HASH).setName("uopen_id").addAttribute("uOpenId"));
+    config.addMapConfig(mapConfigUserXref);
 
     serializers.forEach(s -> addSerializer(config, s));
 
