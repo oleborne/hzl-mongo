@@ -2,9 +2,9 @@ package com.example.demo;
 
 import com.example.demo.domain.*;
 import com.hazelcast.config.*;
-import com.hazelcast.nio.serialization.DataSerializable;
 import com.hazelcast.nio.serialization.StreamSerializer;
 import com.hazelcast.spring.context.SpringManagedContext;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.hazelcast.HazelcastProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -14,10 +14,12 @@ import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static com.example.demo.controller.MyApi.CACHED_REQUESTS;
 
 @Configuration
+@Slf4j
 public class MyConfig {
 
   @Bean
@@ -43,14 +45,25 @@ public class MyConfig {
     return config;
   }
 
-  private <T> void addSerializer(Config config, StreamSerializer<?> serializer) {
-    SerializerConfig serializerConfig = new SerializerConfig();
-    serializerConfig.setImplementation(serializer);
-    serializerConfig.setTypeClass(extractTargetClass(serializer));
-    config.getSerializationConfig().addSerializerConfig(serializerConfig);
+  private void addSerializer(Config config, StreamSerializer<?> serializer) {
+    SerializationConfig serializationConfig = config.getSerializationConfig();
+
+    Stream<Class<?>> targetClasses = extractTargetClass(serializer);
+    long count = targetClasses.map(targetClass -> {
+      SerializerConfig serializerConfig = new SerializerConfig();
+      serializerConfig.setImplementation(serializer);
+      serializerConfig.setTypeClass(targetClass);
+      serializationConfig.addSerializerConfig(serializerConfig);
+      log.info("Adding serializer {} for target class {}", serializer, targetClass);
+      return targetClass;
+    }).count();
+
+    if (count == 0) {
+      log.warn("No target class detected for serializer {}", serializer);
+    }
   }
 
-  private Class<?> extractTargetClass(StreamSerializer<?> serializer) {
+  private Stream<Class<?>> extractTargetClass(StreamSerializer<?> serializer) {
     Class<?> serializerClass = serializer.getClass();
     return Arrays.stream(serializerClass.getGenericInterfaces())
             .filter(type -> type instanceof ParameterizedType)
@@ -58,8 +71,6 @@ public class MyConfig {
             .filter(parameterizedType -> StreamSerializer.class.equals(parameterizedType.getRawType()))
             .map(parameterizedType -> parameterizedType.getActualTypeArguments()[0])
             .filter(type -> type instanceof Class)
-            .map(type -> (Class<?>)type)
-            .findFirst()
-            .orElseThrow(() -> new UnsupportedOperationException("Invalid Serializer definition: " + serializerClass));
+            .map(type -> (Class<?>)type);
   }
 }
