@@ -3,7 +3,7 @@ package com.example.demo.domain;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hazelcast.map.EntryStore;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -16,11 +16,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
+@RequiredArgsConstructor
 public class MongoStore implements EntryStore<IdempotencyKey, CachedRequest> {
 
-  @Autowired ObjectMapper objectMapper;
+  final ObjectMapper objectMapper;
 
-  @Autowired CachedRequestRepository requestRepository;
+  final CachedRequestRepository requestRepository;
 
   @Override
   public void store(IdempotencyKey key, MetadataAwareValue<CachedRequest> value) {
