@@ -10,11 +10,16 @@ import com.hazelcast.map.MapLoaderLifecycleSupport;
 import com.mongodb.MongoException;
 import com.mongodb.client.model.changestream.OperationType;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonValue;
 import org.springframework.data.mongodb.core.ChangeStreamEvent;
 import org.springframework.stereotype.Component;
+import org.springframework.util.backoff.BackOff;
+import org.springframework.util.backoff.BackOffExecution;
+import org.springframework.util.backoff.ExponentialBackOff;
 import reactor.core.Disposable;
 import reactor.core.Exceptions;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuple2;
@@ -24,11 +29,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class MongoStore
         implements EntryStore<IdempotencyKey, CachedRequest>, MapLoaderLifecycleSupport {
 
@@ -42,6 +49,7 @@ public class MongoStore
 
   @Override
   public void store(IdempotencyKey key, MetadataAwareValue<CachedRequest> value) {
+    log.info("Store document for key {}", key);
     doStore(key, value).block();
   }
 
@@ -72,6 +80,7 @@ public class MongoStore
 
   @Override
   public void storeAll(Map<IdempotencyKey, MetadataAwareValue<CachedRequest>> map) {
+    log.info("Storing in bulk {} entries", map.size());
     final List<Mono<CachedRequestDocument>> storeOperations =
         map.entrySet().stream()
             .map(e -> doStore(e.getKey(), e.getValue()))
@@ -81,22 +90,24 @@ public class MongoStore
 
   @Override
   public void delete(IdempotencyKey key) {
+    log.info("Deleting a single entry for key {}", key);
     requestRepository.deleteById(IdempotencyKeyMongo.from(key)).block();
   }
 
   @Override
   public void deleteAll(Collection<IdempotencyKey> keys) {
-    Mono.when(
-            keys.stream()
-                    .map(IdempotencyKeyMongo::from)
-                    .map(requestRepository::deleteById)
-                    .collect(Collectors.toList()))
+    log.info("Deleting in bulk {} docs", keys.size());
+    Flux.fromIterable(keys)
+            .map(IdempotencyKeyMongo::from)
             .publishOn(Schedulers.boundedElastic())
+            .map(requestRepository::deleteById)
+            .count()
             .block();
   }
 
   @Override
   public MetadataAwareValue<CachedRequest> load(IdempotencyKey key) {
+    log.info("Loading a single entry for key {}", key);
     return doLoad(key).block();
   }
 
@@ -109,6 +120,7 @@ public class MongoStore
   @Override
   public Map<IdempotencyKey, MetadataAwareValue<CachedRequest>> loadAll(
           Collection<IdempotencyKey> keys) {
+    log.info("Loading in bulk {} docs", keys.size());
     return requestRepository
             .findAllById(keys.stream().map(IdempotencyKeyMongo::from).collect(Collectors.toList()))
             .map(doc -> Tuples.of(doc.getKey().toKey(), convertToCachedRequest(doc)))
@@ -118,6 +130,7 @@ public class MongoStore
 
   @Override
   public Iterable<IdempotencyKey> loadAllKeys() {
+    log.info("Priming IMDG with only most recent entries");
     return requestRepository
             .findMostRecentEntries(100)
             .map(IdempotencyKeyMongo::toKey)
@@ -131,6 +144,10 @@ public class MongoStore
   }
 
   private void subscribeToChangeStream(Supplier<IMap<IdempotencyKey, CachedRequest>> mapSupplier) {
+    BackOff backOffChangeStream = new ExponentialBackOff();
+    final AtomicReference<BackOffExecution> backOffExecution = new AtomicReference<>();
+    final AtomicReference<Instant> nextAttemptWith1sMargin =
+            new AtomicReference<>(Instant.now().plus(1, ChronoUnit.SECONDS));
     this.subcription =
             requestRepository
                     .changeStream()
@@ -150,15 +167,28 @@ public class MongoStore
                                               .filter(key -> !mapSupplier.get().containsKey(key))
                                               .collect(Collectors.toSet());
                               mapSupplier.get().loadAll(keySet, false);
+                              backOffExecution.set(null);
                             },
                             error -> {
+                              log.warn("Change stream error", error);
                               if (error instanceof MongoException) {
                                 MongoException exception = (MongoException) error;
                                 if (exception.getCode() == 40573) {
+                                  log.warn(
+                                          "MongoDB server not part of a replica-set, will not try to resubscribe");
                                   return;
                                 }
                               }
-                              subscribeToChangeStream(mapSupplier);
+                              // let's wait a bit a resubscribe
+                              if (backOffExecution.get() == null
+                                      || Instant.now().isAfter(nextAttemptWith1sMargin.get())) {
+                                backOffExecution.set(backOffChangeStream.start());
+                              }
+                              Duration nextBackOff =
+                                      Duration.of(backOffExecution.get().nextBackOff(), ChronoUnit.MILLIS);
+                              nextAttemptWith1sMargin.set(
+                                      Instant.now().plus(nextBackOff).plus(1, ChronoUnit.SECONDS));
+                              Mono.delay(nextBackOff).subscribe(aVoid -> subscribeToChangeStream(mapSupplier));
                             });
   }
 
