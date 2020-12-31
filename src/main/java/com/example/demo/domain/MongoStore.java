@@ -179,7 +179,7 @@ public class MongoStore
                                   return;
                                 }
                               }
-                              // let's wait a bit a resubscribe
+                              // let's wait a bit and resubscribe
                               if (backOffExecution.get() == null
                                       || Instant.now().isAfter(nextAttemptWith1sMargin.get())) {
                                 backOffExecution.set(backOffChangeStream.start());
