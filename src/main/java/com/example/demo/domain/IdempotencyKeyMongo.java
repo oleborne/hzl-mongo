@@ -5,6 +5,10 @@ import lombok.Data;
 
 import java.io.Serializable;
 
+/**
+ * class distinct from {@link IdempotencyKey} used in the Hazelcast map so the {@link Serializable} does
+ * not override the custom {@link IdempotencyKeySerializer}
+ */
 @Data
 @Builder
 public class IdempotencyKeyMongo implements Serializable {
