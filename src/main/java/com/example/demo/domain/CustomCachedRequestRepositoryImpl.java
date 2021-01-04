@@ -30,6 +30,9 @@ public class CustomCachedRequestRepositoryImpl implements CustomCachedRequestRep
 
   @Override
   public Flux<ChangeStreamEvent<CachedRequestDocument>> changeStream(Object resumeToken) {
+    if (resumeToken == null) {
+      return changeStream();
+    }
     return mongoTemplate.changeStream(CachedRequestDocument.class).resumeAt(resumeToken).listen();
   }
 }

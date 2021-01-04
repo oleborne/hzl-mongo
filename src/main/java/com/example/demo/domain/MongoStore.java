@@ -150,7 +150,7 @@ public class MongoStore
             new AtomicReference<>(Instant.now().plus(1, ChronoUnit.SECONDS));
     this.subcription =
             requestRepository
-                    .changeStream()
+                    .changeStream(this.resumeToken)
                     .filter(event -> OperationType.INSERT.equals(event.getOperationType()))
                     .filter(event -> notGeneratedByCurrentCluster(event.getBody()))
                     .buffer(Duration.of(5, ChronoUnit.SECONDS))
