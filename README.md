@@ -105,5 +105,17 @@ cross-datacenter load logic multiple times. This is just an efficiency problem a
 (notably by using [Kafka as the actual subscriber][mongo-kafka] of the change stream and then use Kafka consumer groups)
 .
 
-[mongo-kafka]: https://docs.mongodb.com/kafka-connector/current/kafka-source
+### Secondary Indexes
 
+Hazelcast IMDG is a key-value store where entries are stored under a unique key. This allows for fast and efficient
+loading of entries from their keys.
+
+However, there are use-cases where you would want to retrieve the entries based other characteristics than their primary
+key. This is the case notably where the entry intends to manage x-referencing of ids across multiple systems.
+
+Hazelcast supports querying entries using a predicate applied on the value itself. It also supports defining index on
+some properties of the value that would be leveraged by the predicates to improve the efficiency of such requests. This
+avoids having to build multiple key-value maps indexing the same data under different keys with the potential complexity
+of keeping those maps synchronized and consistent.
+
+[mongo-kafka]: https://docs.mongodb.com/kafka-connector/current/kafka-source
